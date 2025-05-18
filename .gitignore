@@ -1,3 +1,5 @@
 backend/.zig-cache
 .zig-cache
 zig-out
+static
+.DS_Store
