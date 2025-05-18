@@ -1,20 +1,52 @@
-const pg = @import("pg");
 const std = @import("std");
-const db = @import("database/database.zig");
+const httpz = @import("httpz");
+const static = @import("http/static.zig");
 
 pub fn main() !void {
-    var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
-    defer _ = gpa.deinit();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
-    var env = try std.process.getEnvMap(allocator);
-    defer env.deinit();
+    var app: App = .{
+        .allocator = allocator,
+        .static = "./static",
+    };
+    var server = try httpz.Server(*App).init(allocator, .{ .port = 3000 }, &app);
 
-    var pool = try db.init(env, allocator);
-    defer pool.deinit();
+    defer {
+        server.stop();
+        server.deinit();
+    }
 
-    var result = try pool.query("select id, name from users where power > $1", .{9000});
-    defer result.deinit();
+    var router = try server.router(.{});
+    router.get("/api/user/:id", getUser, .{});
+
+    try server.listen();
 }
 
-const Ctx = struct { pool: pg.Pool };
+const App = struct {
+    static: ?[]const u8 = null,
+    allocator: std.mem.Allocator,
+    pub fn notFound(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+        var path: ?[]u8 = null;
+        if (req.method == .GET) {
+            if (app.static) |base| blk: {
+                path = static.serveFile(req, res, base) catch break :blk;
+                return;
+            }
+        }
+        try res.json(.{ .path = req.url.path, .param = req.url.query, .static = path }, .{});
+    }
+    pub fn uncaughtError(_: *App, req: *httpz.Request, res: *httpz.Response, err: anyerror) void {
+        std.log.info("500 {} {s} {}", .{ req.method, req.url.path, err });
+        res.status = 500;
+        res.json(.{ .err = err }, .{}) catch {
+            std.log.info("500 {} {s} {}", .{ req.method, req.url.path, err });
+            res.body = "unknow";
+        };
+    }
+};
+
+fn getUser(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    res.status = 200;
+    try res.json(.{ .id = req.param("id"), .name = "Teg" }, .{});
+}
