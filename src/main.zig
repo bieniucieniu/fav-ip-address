@@ -3,12 +3,15 @@ const httpz = @import("httpz");
 const static = @import("app/static.zig");
 const App = @import("app/server.zig").App;
 
+const parseEnvInt = @import("./utils/env.zig").parseEnvInt;
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
     var app: App = .{ .static = "./static" };
-    var server = try httpz.Server(*App).init(allocator, .{ .port = 3000 }, &app);
+    const env = try std.process.getEnvMap(allocator);
+    var server = try httpz.Server(*App).init(allocator, .{ .port = parseEnvInt(u16, env.get("PORT"), 3000) }, &app);
 
     defer {
         server.stop();
@@ -18,6 +21,7 @@ pub fn main() !void {
     var router = try server.router(.{});
     router.get("/api/user/:id", getUser, .{});
 
+    std.log.info("starting server on: {?s}", .{env.get("PORT")});
     try server.listen();
 }
 

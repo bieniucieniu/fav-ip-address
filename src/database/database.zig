@@ -1,6 +1,8 @@
 const pg = @import("pg");
 const std = @import("std");
 
+const parseEnvInt = @import("./utils/env.zig").parseEnvInt;
+
 pub const DBError = error{
     MissingDbUsername,
 };
@@ -14,11 +16,4 @@ pub fn init(env: std.process.EnvMap, allocator: std.mem.Allocator) !*pg.Pool {
         .password = env.get("PG_PASSWORD"),
         .timeout = parseEnvInt(u32, env.get("PG_TIMEOUT"), 10_000),
     } });
-}
-
-inline fn parseEnvInt(comptime T: type, buf: ?[]const u8, fallback: T) T {
-    return if (buf) |b|
-        std.fmt.parseInt(T, b, 0) catch fallback
-    else
-        fallback;
 }
