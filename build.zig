@@ -32,14 +32,22 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
-
     run_cmd.step.dependOn(b.getInstallStep());
 
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }
 
+    // const frontend_cwd: std.Build.LazyPath = .{ .cwd_relative = "./frontend/" };
+    // const run_install_forntend = b.addSystemCommand(&.{ "bun", "run", "build" });
+    // run_install_forntend.setCwd(frontend_cwd);
+    // const run_build_forntend = b.addSystemCommand(&.{ "bun", "run", "build" });
+    // run_build_forntend.setCwd(frontend_cwd);
+    // run_build_forntend.step.dependOn(&run_build_forntend.step);
+    //
     const run_step = b.step("run", "Run the app");
+    // run_step.dependOn(&run_build_forntend.step);
+    // run_step.dependOn(&run_build_forntend.step);
     run_step.dependOn(&run_cmd.step);
 
     const exe_unit_tests = b.addTest(.{
