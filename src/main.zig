@@ -9,9 +9,10 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
-    var app: App = .{ .static = "./static" };
     const env = try std.process.getEnvMap(allocator);
-    var server = try httpz.Server(*App).init(allocator, .{ .port = parseEnvInt(u16, env.get("PORT"), 3000) }, &app);
+    var instance: App = try .init(allocator, .{ .static = "./static", .env = env });
+    defer instance.deinit();
+    var server = try httpz.Server(*App).init(allocator, .{ .port = parseEnvInt(u16, env.get("PORT"), 3000) }, &instance);
 
     defer {
         server.stop();
@@ -19,13 +20,38 @@ pub fn main() !void {
     }
 
     var router = try server.router(.{});
-    router.get("/api/user/:id", getUser, .{});
+    router.get("/api/user/:username", struct {
+        fn handler(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+            const username = req.param("username") orelse unreachable;
+            res.status = 200;
+            try getRepos(req.arena, app, username, res.writer());
+        }
+    }.handler, .{});
 
-    std.log.info("starting server on: {?s}", .{env.get("PORT")});
+    std.log.info("starting server on: {s}", .{env.get("PORT") orelse "3000"});
     try server.listen();
 }
 
-fn getUser(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    res.status = 200;
-    try res.json(.{ .id = req.param("id"), .name = "Teg" }, .{});
+fn getRepos(a: std.mem.Allocator, app: *App, username: []const u8) ![]const u8 {
+    const path = try std.fmt.allocPrint(a, "http://127.0.0.1:8000/{s}/get", .{username});
+    const uri = std.Uri.parse(path) catch unreachable;
+    const buf = try a.alloc(u8, 4096);
+    defer a.free(buf);
+    var req = try app.client.open(.GET, uri, .{ .server_header_buffer = buf });
+    defer req.deinit();
+    try req.send();
+    try req.wait();
+    const content_length = try getContentLength(req);
+    const buffer = try a.alloc(u8, content_length);
+    errdefer a.free(buffer);
+    _ = try req.readAll(buffer);
+    return buffer;
+}
+
+const GetContentLengthErr = error{InvalidContentLength};
+fn getContentLength(req: std.http.Client.Request) !u64 {
+    return switch (req.transfer_encoding) {
+        .content_length => |len| len,
+        else => return GetContentLengthErr.InvalidContentLength,
+    };
 }

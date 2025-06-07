@@ -36,13 +36,13 @@
     // Once all dependencies are fetched, `zig build` no longer requires
     // internet connectivity.
     .dependencies = .{
-        .pg = .{
-            .url = "git+https://github.com/karlseguin/pg.zig?ref=master#901c289368f0eae8e37ca90e3f806be9e3ff86f9",
-            .hash = "pg-0.0.0-Wp_7gRD-BQCbDvJEahLsdoxUdlR7BsmvPnQyYdGyQzEE",
-        },
         .httpz = .{
             .url = "git+https://github.com/karlseguin/http.zig?ref=master#6afc7a5854c202438c372d940851c999dbe4ce75",
             .hash = "httpz-0.0.0-PNVzrMG3BgC2nAeXR0VFONPZgaOJ9TpAjanNn5zl9D9c",
+        },
+        .zqlite = .{
+            .url = "git+https://github.com/karlseguin/zqlite.zig?ref=master#ee7799b5bf138444986396966fb5f82c890a432b",
+            .hash = "zqlite-0.0.0-RWLaYxJ_lQBh1RLy13q2qJd5W8R6stUnMiARabnK6OnX",
         },
     },
     .paths = .{
